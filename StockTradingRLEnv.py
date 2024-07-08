@@ -44,12 +44,12 @@ class StockEnv(gym.Env):
         self.terminal = False             
         # initalize state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
-                      self.data.adjcp.values.tolist() + \
-                      [0]*STOCK_DIM + \
-                      self.data.macd.values.tolist() + \
-                      self.data.rsi.values.tolist() + \
-                      self.data.cci.values.tolist() + \
-                      self.data.adx.values.tolist()
+                        self.data.adjcp.values.tolist() + \
+                        [0]*STOCK_DIM + \
+                        self.data.macd.values.tolist() + \
+                        self.data.rsi.values.tolist() + \
+                        self.data.cci.values.tolist() + \
+                        self.data.adx.values.tolist()
         # initialize reward
         self.reward = 0
         self.turbulence = 0
@@ -68,11 +68,11 @@ class StockEnv(gym.Env):
                 #update balance
                 self.state[0] += \
                 self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
-                 (1- TRANSACTION_FEE_PERCENT)
+                    (1- TRANSACTION_FEE_PERCENT)
                 
                 self.state[index+STOCK_DIM+1] -= min(abs(action), self.state[index+STOCK_DIM+1])
                 self.cost +=self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
-                 TRANSACTION_FEE_PERCENT
+                    TRANSACTION_FEE_PERCENT
             else:
                 pass
         else:
@@ -80,10 +80,10 @@ class StockEnv(gym.Env):
             if self.state[index+STOCK_DIM+1] > 0:
                 #update balance
                 self.state[0] += self.state[index+1]*self.state[index+STOCK_DIM+1]* \
-                              (1- TRANSACTION_FEE_PERCENT)
+                                (1- TRANSACTION_FEE_PERCENT)
                 self.state[index+STOCK_DIM+1] =0
                 self.cost += self.state[index+1]*self.state[index+STOCK_DIM+1]* \
-                              TRANSACTION_FEE_PERCENT
+                                TRANSACTION_FEE_PERCENT
             else:
                 pass
     
@@ -95,12 +95,12 @@ class StockEnv(gym.Env):
             
             #update balance
             self.state[0] -= self.state[index+1]*min(available_amount, action)* \
-                              (1+ TRANSACTION_FEE_PERCENT)
+                                (1+ TRANSACTION_FEE_PERCENT)
 
             self.state[index+STOCK_DIM+1] += min(available_amount, action)
             
             self.cost+=self.state[index+1]*min(available_amount, action)* \
-                              TRANSACTION_FEE_PERCENT
+                                TRANSACTION_FEE_PERCENT
         else:
             # if turbulence goes over threshold, just stop buying
             pass
@@ -121,7 +121,7 @@ class StockEnv(gym.Env):
             df_total_value.columns = ['account_value']
             df_total_value['daily_return']=df_total_value.pct_change(1)
             sharpe = (252**0.5)*df_total_value['daily_return'].mean()/ \
-                  df_total_value['daily_return'].std()
+                    df_total_value['daily_return'].std()
             print("Sharpe: ",sharpe)
             
             df_rewards = pd.DataFrame(self.rewards_memory)
@@ -193,12 +193,12 @@ class StockEnv(gym.Env):
         self.rewards_memory = []
         #initiate state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
-                      self.data.adjcp.values.tolist() + \
-                      [0]*STOCK_DIM + \
-                      self.data.macd.values.tolist() + \
-                      self.data.rsi.values.tolist() + \
-                      self.data.cci.values.tolist() + \
-                      self.data.adx.values.tolist() 
+                        self.data.adjcp.values.tolist() + \
+                        [0]*STOCK_DIM + \
+                        self.data.macd.values.tolist() + \
+                        self.data.rsi.values.tolist() + \
+                        self.data.cci.values.tolist() + \
+                        self.data.adx.values.tolist() 
         # iteration += 1 
         return self.state
     
