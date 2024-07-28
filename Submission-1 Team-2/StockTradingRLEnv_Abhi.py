@@ -5,16 +5,10 @@ from gymnasium import spaces
 import pandas as pd
 import numpy as np
 import datetime as dt
-
-# from stable_baselines3.common.policies import MlpPolicy
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3 import PPO
 
-MAX_ACCOUNT_BALANCE = 2147483647
-MAX_NUM_SHARES = 2147483647
-MAX_SHARE_PRICE = 5000
 MAX_STEPS = 20000
-
 INITIAL_ACCOUNT_BALANCE = 10000
 
 
@@ -26,13 +20,13 @@ class StockTradingEnv(gym.Env):
 
         self.df = df
         self.render_mode = render_mode
-        self.reward_range = (0, MAX_ACCOUNT_BALANCE)
+        self.reward_range = (0, np.inf)
 
         # Actions of the format Buy x%, Sell x%, Hold, etc.
         self.action_space = spaces.Box(
             low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
 
-        # Prices contains the OHCL values for the last five prices
+        # Prices contains the OHLC values for the last five prices
         self.observation_space = spaces.Box(
             low=0, high=1, shape=(6, 6), dtype=np.float16)
 
@@ -40,24 +34,27 @@ class StockTradingEnv(gym.Env):
         # Get the stock data points for the last 5 days and scale to between 0-1
         frame = np.array([
             self.df.loc[self.current_step: self.current_step +
-                        5, 'Open'].values / MAX_SHARE_PRICE,
+                        5, 'Open'].values / self.df.loc[:self.current_step, 'Open'].mean(),
             self.df.loc[self.current_step: self.current_step +
-                        5, 'High'].values / MAX_SHARE_PRICE,
+                        5, 'High'].values / self.df.loc[:self.current_step, 'High'].mean(),
             self.df.loc[self.current_step: self.current_step +
-                        5, 'Low'].values / MAX_SHARE_PRICE,
+                        5, 'Low'].values / self.df.loc[:self.current_step, 'Low'].mean(),
             self.df.loc[self.current_step: self.current_step +
-                        5, 'Close'].values / MAX_SHARE_PRICE,
+                        5, 'Close'].values / self.df.loc[:self.current_step, 'Close'].mean(),
             self.df.loc[self.current_step: self.current_step +
-                        5, 'Volume'].values / MAX_NUM_SHARES
+                        5, 'Volume'].values / self.df.loc[:self.current_step, 'Volume'].mean()
         ])
 
         obs = np.append(frame, [[
-            self.balance / MAX_ACCOUNT_BALANCE,
-            self.max_net_worth / MAX_ACCOUNT_BALANCE,
-            self.shares_held / MAX_NUM_SHARES,
-            self.cost_basis / MAX_SHARE_PRICE,
-            self.total_shares_sold / MAX_NUM_SHARES,
-            self.total_sales_value / (MAX_NUM_SHARES * MAX_SHARE_PRICE),
+            self.balance / INITIAL_ACCOUNT_BALANCE,
+            self.max_net_worth / INITIAL_ACCOUNT_BALANCE,
+            self.shares_held /
+            self.df.loc[:self.current_step, 'Volume'].mean(),
+            self.cost_basis / self.df.loc[:self.current_step, 'Close'].mean(),
+            self.total_shares_sold /
+            self.df.loc[:self.current_step, 'Volume'].mean(),
+            self.total_sales_value / (self.df.loc[:self.current_step, 'Volume'].mean(
+            ) * self.df.loc[:self.current_step, 'Close'].mean()),
         ]], axis=0)
 
         return obs
@@ -145,20 +142,21 @@ class StockTradingEnv(gym.Env):
                 f'Render mode {self.render_mode} is not implemented')
 
 
-df = pd.read_csv('./data/AAPL.csv')
-df = df.sort_values('Date')
-df.dropna(inplace=True)
-df = df.sort_values('Date')
-df = df.reset_index()
+if (__name__ == '__main__'):
+    df = pd.read_csv('./data/AAPL.csv')
+    df = df.sort_values('Date')
+    df.dropna(inplace=True)
+    df = df.sort_values('Date')
+    df = df.reset_index(drop=True)
 
-# The algorithms require a vectorized environment to run
-env = DummyVecEnv([lambda: StockTradingEnv(df, render_mode='human')])
+    # The algorithms require a vectorized environment to run
+    env = DummyVecEnv([lambda: StockTradingEnv(df, render_mode='human')])
 
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=20000)
+    model = PPO("MlpPolicy", env, verbose=1)
+    model.learn(total_timesteps=20000)
 
-obs = env.reset()
-for i in range(2000):
-    action, _states = model.predict(obs)
-    obs, rewards, done, truncated = env.step(action)
-    env.render()
+    obs = env.reset()
+    for i in range(2000):
+        action, _states = model.predict(obs)
+        obs, rewards, done, truncated, _ = env.step(action)
+        env.render()
