@@ -8,9 +8,7 @@ import datetime as dt
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3 import PPO
 
-MAX_STEPS = 20000
 INITIAL_ACCOUNT_BALANCE = 10000
-
 
 class StockTradingEnv(gym.Env):
     """A stock trading environment for OpenAI gym"""
@@ -24,7 +22,7 @@ class StockTradingEnv(gym.Env):
 
         # Actions of the format Buy x%, Sell x%, Hold, etc.
         self.action_space = spaces.Box(
-            low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
+            low=np.array([0, 0]), high=np.array([2, 1]), dtype=np.float16)
 
         # Prices contains the OHLC values for the last five prices
         self.observation_space = spaces.Box(
@@ -73,8 +71,10 @@ class StockTradingEnv(gym.Env):
             additional_cost = shares_bought * current_price
 
             self.balance -= additional_cost
-            self.cost_basis = (prev_cost + additional_cost) / \
-                (self.shares_held + shares_bought)
+
+            v1 = prev_cost + additional_cost
+            v2 = self.shares_held + shares_bought
+            self.cost_basis = 0 if v2 == 0 else v1 / v2
             self.shares_held += shares_bought
 
         elif action_type < 2:
@@ -85,7 +85,6 @@ class StockTradingEnv(gym.Env):
             self.total_sales_value += shares_sold * current_price
 
         self.net_worth = self.balance + self.shares_held * current_price
-        print(self.net_worth, self.shares_held, current_price)
 
         if self.net_worth > self.max_net_worth:
             self.max_net_worth = self.net_worth
@@ -94,20 +93,15 @@ class StockTradingEnv(gym.Env):
             self.cost_basis = 0
 
     def step(self, action):
-        print("hello")
         self._take_action(action)
         self.current_step += 1
 
         if self.current_step > len(self.df.loc[:, 'Open'].values) - 6:
             self.current_step = 0
 
-        delay_modifier = (self.current_step / MAX_STEPS)
-
-        reward = self.balance * delay_modifier
+        reward = self.net_worth - INITIAL_ACCOUNT_BALANCE
         done = self.net_worth <= 0
-        # truncated = False  # You can set this to True based on your logic
-        truncated = "hello ji"
-
+        truncated = False  # You can set this to True based on your logic
         obs = self._next_observation()
 
         return obs, reward, done, truncated, {}
